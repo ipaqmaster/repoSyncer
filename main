@@ -1,0 +1,71 @@
+#!/bin/bash
+reposBaseDir="/repo/upstream"
+
+if [ -z "$1" ]
+then
+  echo "Need file.repo that you wish to mirror as argument."
+  exit 1
+elif [ ! -f "$1" ]
+then
+  echo "$1 not found"
+  exit 1
+else
+  desiredRepo="$1"
+fi
+
+hostDnfVars="$(python <<< $'import dnf\nfor k,v in dnf.dnf.Base().conf.substitutions.items(): print(k,v, sep="=")')"
+eval $hostDnfVars
+echo Set DNF host variables: $hostDnfVars
+
+repoListToMirror="$(dnf repolist --setopt=reposdir='' -c "${desiredRepo}" | cut -d' ' -f1 | tail -n +2)"
+
+if [ -z "$repoListToMirror" ]
+then
+  echo "No repos found in this file. Are any enabled?"
+  exit 1 
+fi
+
+for repo in $repoListToMirror
+do
+  echo "Starting on: $repo"
+
+  # Take details from `dnf repoinfo` and store them in an assoc array for use.
+  declare -A repoDetails
+  while read detail 
+  do
+    key="$(cut -d':' -f1 <<< "${detail}" | tr -d ' ,-')"
+    value="$(cut -d':' -f2- <<< "${detail}" | sed -E -e 's/( ?)\(.*\)//g' | sed -E -e 's/^ //g')"
+    repoDetails[${key}]="${value}"
+  done <<< "$(dnf repoinfo --setopt=reposdir='' -c "${desiredRepo}" ${repo})"
+
+  if [ -n "${repoDetails[Repomirrors]}" ]
+  then
+    repoDetails[RepomirrorsVariables]="$(grep -Po '[a-z]+=[a-zA-Z_0-9-]+' <<< "${repoDetails[Repomirrors]}")"
+    repoDetails[RepomirrorsListResolved]="$(curl -s "${repoDetails[Repomirrors]}")"
+  elif [ -n "${repoDetails[Repometalink]}" ]
+  then
+    repoDetails[RepomirrorsVariables]="$(grep -Po '[a-z]+=[a-zA-Z_0-9-]+' <<< "${repoDetails[Repometalink]}")"
+    repoDetails[RepomirrorsListResolved]="$(curl -s "${repoDetails[Repometalink]}")"
+  fi
+
+  echo "${repoDetails[RepomirrorsListResolved]}"
+  repoDetails[RepomirrorsBestFittingDirectoryStructure]="$(cut -d'/' -f4- <<< "${repoDetails[RepomirrorsListResolved]}" | sort -u | grep -vE '^(pub|linux)' | grep ^[a-z] | head -n1)"
+  if [ -z "${repoDetails[RepomirrorsBestFittingDirectoryStructure]}" ]
+  then
+    echo "Couldn't determine best directory structure for repo $repo in file $desiredRepo"
+    exit 1
+  fi
+
+  echo "Best fitting dir structure :${repoDetails[RepomirrorsBestFittingDirectoryStructure]}:"
+  echo "Syncing ${repo} to ${reposBaseDir}/${repoDetails[RepomirrorsBestFittingDirectoryStructure]}"
+  echo ":${reposBaseDir}/${repoDetails[RepomirrorsBestFittingDirectoryStructure]}:"
+  continue
+  dnf reposync --setopt=reposdir='' -c "${desiredRepo}" \
+    --download-metadata \
+    --newest-only \
+    --repoid=${repo} \
+    --delete \
+    --norepopath \
+    -p "${reposBaseDir}/${repoDetails[RepomirrorsBestFittingDirectoryStructure]}"
+  echo "-------------"
+done
