@@ -59,7 +59,6 @@ do
   echo "Best fitting dir structure :${repoDetails[RepomirrorsBestFittingDirectoryStructure]}:"
   echo "Syncing ${repo} to ${reposBaseDir}/${repoDetails[RepomirrorsBestFittingDirectoryStructure]}"
   echo ":${reposBaseDir}/${repoDetails[RepomirrorsBestFittingDirectoryStructure]}:"
-  continue
   dnf reposync --setopt=reposdir='' -c "${desiredRepo}" \
     --download-metadata \
     --newest-only \
