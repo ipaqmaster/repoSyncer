@@ -132,7 +132,6 @@ do
       #zfs create -p ${datasetChain}/${expectedDatasetPath}
     fi
   fi
-  continue
 
   echo "Syncing ${repo} to ${reposBaseDir}/${repoDetails[RepomirrorsBestFittingDirectoryStructure]}"
   echo ":${reposBaseDir}/${repoDetails[RepomirrorsBestFittingDirectoryStructure]}:"
