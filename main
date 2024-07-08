@@ -100,10 +100,15 @@ do
   then
     repoDetails[RepomirrorsVariables]="$(grep -Po '[a-z]+=[a-zA-Z_0-9-]+' <<< "${repoDetails[Repomirrors]}")"
     repoDetails[RepomirrorsListResolved]="$(curl -s "${repoDetails[Repomirrors]}")"
+
   elif [ -n "${repoDetails[Repometalink]}" ]
   then
     repoDetails[RepomirrorsVariables]="$(grep -Po '[a-z]+=[a-zA-Z_0-9-]+' <<< "${repoDetails[Repometalink]}")"
     repoDetails[RepomirrorsListResolved]="$(curl -s "${repoDetails[Repometalink]}")"
+
+  elif [ -n "${repoDetails[Repobaseurl]}" ]
+  then
+    repoDetails[RepomirrorsListResolved]="${repoDetails[Repobaseurl]}"
   fi
 
   echo "${repoDetails[RepomirrorsListResolved]}"
